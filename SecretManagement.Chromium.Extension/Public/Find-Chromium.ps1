@@ -35,10 +35,11 @@ function Find-Chromium {
     function getProfileNames ($UserDataFolderPath) {
         try {
             $localStatePath = Join-Path -Resolve $UserDataFolderPath 'Local State' -ErrorAction stop
-        } catch {
+        }
+        catch {
             Write-Warning "$UserDataFolderPath exists but has no Local State file."
         }
-        [String[]]$ProfileNames = (Get-Content -Raw $localStatePath | ConvertFrom-Json).profile.info_cache.psobject.properties.name
+        [String[]]$ProfileNames = (Get-Content -Raw $localStatePath | ConvertFrom-Json -AsHashtable)["profile"].info_cache.Keys
         if (-not $ProfileNames) { Write-Warning 'Local State file exists but no profile information was found' }
         return $ProfileNames
     }
@@ -75,7 +76,8 @@ function Find-Chromium {
                 } | Write-Output
                 Write-Verbose "SecretManagement.Chromium: Discovery FOUND $PresetItem profile at $($Presets[$PresetItem])"
             }
-        } catch {
+        }
+        catch {
             Write-Verbose "SecretManagement.Chromium: Discovery NOT FOUND $PresetItem profile at $($Presets[$PresetItem])"
         }
     }
