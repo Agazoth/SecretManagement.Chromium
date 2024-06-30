@@ -3,7 +3,7 @@ using namespace 'System.Security.Cryptography'
 function Test-SecretVault {
     [CmdletBinding()]
     param (
-        [Parameter(ValueFromPipelineByPropertyName,Mandatory)]
+        [Parameter(ValueFromPipelineByPropertyName, Mandatory)]
         [string]$VaultName,
 
         [Parameter(ValueFromPipelineByPropertyName)]
@@ -24,7 +24,8 @@ function Test-SecretVault {
             $candidateStatePath = Join-Path $AdditionalParameters.DataPath '../../Local State' -Resolve -ErrorAction stop
             Write-Verbose "Autodetected Local State file at $candidateStatePath"
             $AdditionalParameters.StatePath = $candidateStatePath
-        } catch {
+        }
+        catch {
             throw "Vault ${VaultName}: You must specify the StatePath parameter as a path to your Chromium Database. Hint for Chrome: `$env:LOCALAPPDATA\Google\Chrome\User Data\Local State"
         }
     }
@@ -33,7 +34,8 @@ function Test-SecretVault {
     $tempDBFile = Join-Path ([io.path]::GetTempPath()) "ChromeVault-$PID-$VaultName.dbcache"
     if ((Test-Path $tempDBFile) -and $dbFile.LastWriteTime -eq (Get-Item $tempDBFile).LastWriteTime -and $dbFile.Length -eq (Get-Item $tempDBFile).Length) {
         Write-Debug "${VaultName}: Temp DB $tempDBFile is still a valid cache"
-    } else {
+    }
+    else {
         #Make a copy because Chromium locks the DB file at the SQLite level and this will freeze the module trying to open it
         Write-Debug "${VaultName}: Source DB has been updated, copying to $tempDBFile"
         $tempDB = Copy-Item -ErrorAction Stop -Path $dbFile -Destination $tempDBFile -PassThru
@@ -52,15 +54,17 @@ function Test-SecretVault {
             Remove-Item $tempDBFile
         }
         $SCRIPT:__VAULT[$VaultName] = $db
-    } catch {
+    }
+    catch {
         throw
-    } finally {
+    }
+    finally {
         $db.close()
     }
 
     #Extract the local state encryption key if present
     if ($AdditionalParameters.StatePath) {
-        $localStateInfo = Get-Content -Raw $AdditionalParameters.StatePath | ConvertFrom-Json
+        $localStateInfo = Get-Content -Raw $AdditionalParameters.StatePath | ConvertFrom-Json -AsHashtable
         if ($localStateInfo) {
             $encryptedkey = [convert]::FromBase64String($localStateInfo.os_crypt.encrypted_key)
         }
@@ -69,9 +73,10 @@ function Test-SecretVault {
             if ($PSVersionTable.PSVersion -lt '7.0.0') {
                 throw [NotSupportedException]'Chromium v80 or later AES-encrypted passwords were detected, currently we cannot decrypt these with Windows Powershell or PS6. Please use Powershell 7'
             }
-            $masterKey = [ProtectedData]::Unprotect(($encryptedkey | Select-Object -Skip 5),  $null, 'CurrentUser')
+            $masterKey = [ProtectedData]::Unprotect(($encryptedkey | Select-Object -Skip 5), $null, 'CurrentUser')
             $SCRIPT:__VAULT["$VaultName-Key"] = [AesGcm]::new($masterKey)
-        } else { Write-Warning 'Could not get key for new-style encyption. Will try with older Style' }
+        }
+        else { Write-Warning 'Could not get key for new-style encyption. Will try with older Style' }
     }
 
     return $true
